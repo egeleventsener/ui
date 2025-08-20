@@ -3,9 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include <limits.h>
 #define SIZE 1024
 #ifndef PATH_MAX
@@ -16,7 +13,6 @@
   #include <winsock2.h>
   #include <ws2tcpip.h>
   #include <windows.h>   // Sleep
-  // For MSVC you can also keep this; harmless for MinGW:
   #pragma comment(lib, "ws2_32.lib")
   #define CLOSESOCK closesocket
   static void sleep_seconds(unsigned sec) { Sleep(sec * 1000); }
