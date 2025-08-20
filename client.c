@@ -70,10 +70,21 @@ int main() {
     struct sockaddr_in server;
     char buffer[1000], server_reply[2000];
 
+    #ifdef _WIN32
+    WSADATA wsa;
+    if (WSAStartup(MAKEWORD(2,2), &wsa) != 0) {
+        log_sock_err("WSAStartup failed");
+        return 1;
+    }
+    #endif
+
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock == -1) {
         printf("Socket creation failed\n");
-        return 1;
+        #ifdef _WIN32
+            WSACleanup();
+        #endif
+            return 1;
     }
 
     server.sin_addr.s_addr = inet_addr("192.168.0.172");
