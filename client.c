@@ -12,6 +12,24 @@
 #define PATH_MAX 4096 
 #endif
 
+#ifdef _WIN32
+  #include <winsock2.h>
+  #include <ws2tcpip.h>
+  #include <windows.h>   // Sleep
+  // For MSVC you can also keep this; harmless for MinGW:
+  #pragma comment(lib, "ws2_32.lib")
+  #define CLOSESOCK closesocket
+  static void sleep_seconds(unsigned sec) { Sleep(sec * 1000); }
+#else
+  #include <unistd.h>
+  #include <netinet/in.h>
+  #include <sys/socket.h>
+  #include <arpa/inet.h>
+  #define CLOSESOCK close
+  static void sleep_seconds(unsigned sec) { sleep(sec); }
+#endif
+
+
 void send_file(FILE *fp, int sockfd, const char *filepath) {
     char data[SIZE] = {0};
     size_t n;
@@ -62,7 +80,7 @@ int main() {
         return 1;
     }
 
-    server.sin_addr.s_addr = inet_addr("127.0.0.1");
+    server.sin_addr.s_addr = inet_addr("192.168.0.172");
     server.sin_family = AF_INET;
     server.sin_port = htons(5000);
 
@@ -104,9 +122,9 @@ int main() {
 
             send_file(fp, sock, filepath);
             fclose(fp);
-            continue;  // Continue to next command prompt
+            continue;  
         } else {
-            // Receive server response for non-file commands
+            
             char server_reply[SIZE];
             memset(server_reply, 0, SIZE);
             int recv_size = recv(sock, server_reply, SIZE-1, 0);
