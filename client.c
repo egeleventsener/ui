@@ -4,7 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
-#define SIZE 1024
+#define BUF_SIZE 1024
 #ifndef PATH_MAX
 #define PATH_MAX 4096 
 #endif
@@ -27,7 +27,7 @@
 
 
 void send_file(FILE *fp, int sockfd, const char *filepath) {
-    char data[SIZE] = {0};
+    char data[BUF_SIZE] = {0};
     size_t n;
 
     // Send filename
@@ -37,19 +37,19 @@ void send_file(FILE *fp, int sockfd, const char *filepath) {
     }
 
     // Wait for server ready signal
-    char response[SIZE];
-    if (recv(sockfd, response, SIZE, 0) <= 0) {
+    char response[BUF_SIZE];
+    if (recv(sockfd, response, BUF_SIZE, 0) <= 0) {
         perror("No response from server");
         return;
     }
 
     // Read and send file content
-    while ((n = fread(data, 1, SIZE, fp)) > 0) {
+    while ((n = fread(data, 1, BUF_SIZE, fp)) > 0) {
         if (send(sockfd, data, n, 0) == -1) {
             perror("Error sending file content");
             return;
         }
-        memset(data, 0, SIZE);
+        memset(data, 0, BUF_SIZE);
     }
     
     // Send EOF marker
@@ -60,7 +60,7 @@ void send_file(FILE *fp, int sockfd, const char *filepath) {
     }
 
     // Wait for completion confirmation
-    if (recv(sockfd, response, SIZE, 0) > 0) {
+    if (recv(sockfd, response, BUF_SIZE, 0) > 0) {
         printf("Server: %s\n", response);
     }
 }
@@ -121,9 +121,9 @@ int main() {
             continue;  
         } else {
             
-            char server_reply[SIZE];
-            memset(server_reply, 0, SIZE);
-            int recv_size = recv(sock, server_reply, SIZE-1, 0);
+            char server_reply[BUF_SIZE];
+            memset(server_reply, 0, BUF_SIZE);
+            int recv_size = recv(sock, server_reply, BUF_SIZE-1, 0);
             if (recv_size > 0) {
                 server_reply[recv_size] = '\0';
                 printf("Server: %s\n", server_reply);
