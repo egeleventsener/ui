@@ -10,12 +10,16 @@
 #endif
 
 #ifdef _WIN32
+  #define WIN32_LEAN_AND_MEAN
   #include <winsock2.h>
   #include <ws2tcpip.h>
-  #include <windows.h>   // Sleep
+  #include <windows.h>
   #pragma comment(lib, "ws2_32.lib")
   #define CLOSESOCK closesocket
   static void sleep_seconds(unsigned sec) { Sleep(sec * 1000); }
+  static void log_sock_err(const char* msg) {
+      fprintf(stderr, "%s (WSAGetLastError=%ld)\n", msg, (long)WSAGetLastError());
+  }
 #else
   #include <unistd.h>
   #include <netinet/in.h>
@@ -23,7 +27,9 @@
   #include <arpa/inet.h>
   #define CLOSESOCK close
   static void sleep_seconds(unsigned sec) { sleep(sec); }
+  static void log_sock_err(const char* msg) { perror(msg); }
 #endif
+
 
 
 void send_file(FILE *fp, int sockfd, const char *filepath) {
