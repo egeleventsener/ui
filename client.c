@@ -71,6 +71,7 @@ static int send_file_with_size(FILE *fp, int sock, const char* srcpath){
 
 
 
+
 int main(){
     int sock;
     struct sockaddr_in server;
@@ -164,8 +165,11 @@ int main(){
             const char *fname = path_basename(src);
             if(send_all(sock, fname, strlen(fname))<0 || send_all(sock,"\n",1)<0){ perror("send filename"); fclose(fp); continue; }
 
-            if (send_file_with_size(fp, sock, src) < 0) { perror("send file"); fclose(fp); continue; }            fclose(fp);
-
+            if (send_file_with_size(fp, sock, src) < 0) { 
+                perror("send file"); 
+                fclose(fp); 
+                continue; 
+}
             char resp[256]={0}; int rcv = recv(sock, resp, sizeof(resp)-1, 0);
             if(rcv>0){ resp[rcv]='\0'; printf("Server: %s", resp); }
             continue;
