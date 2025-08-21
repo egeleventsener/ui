@@ -7,9 +7,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <errno.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
+
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -26,6 +24,9 @@
   #define strncasecmp _strnicmp
   #endif
 #else
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
   #define CLOSESOCK close
   static void sleep_seconds(unsigned sec) { sleep(sec); }
   static void log_sock_err(const char* msg) { perror(msg); }
