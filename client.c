@@ -70,7 +70,11 @@ static void local_ls(void){
 }
 static void local_mkdir(const char *name){
     if (!name||!*name){ fprintf(stderr,"mkdir: missing name\n"); return; }
-    if (mkdir(name, 0777)!=0) perror("mkdir");
+#ifdef _WIN32
+    if (mkdir(name)!=0) perror("mkdir");   // Windows: sadece 1 argüman
+#else
+    if (mkdir(name, 0777)!=0) perror("mkdir");  // Linux: 2 argüman
+#endif
 }
 static void local_rm(const char *path){
     if (!path||!*path){ fprintf(stderr,"rm: missing path\n"); return; }
