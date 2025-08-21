@@ -71,11 +71,12 @@ static void local_ls(void){
 static void local_mkdir(const char *name){
     if (!name||!*name){ fprintf(stderr,"mkdir: missing name\n"); return; }
 #ifdef _WIN32
-    if (mkdir(name)!=0) perror("mkdir");   // Windows: sadece 1 argüman
+    if (mkdir(name)!=0) perror("mkdir");
 #else
-    if (mkdir(name, 0777)!=0) perror("mkdir");  // Linux: 2 argüman
+    if (mkdir(name, 0777)!=0) perror("mkdir");
 #endif
 }
+
 static void local_rm(const char *path){
     if (!path||!*path){ fprintf(stderr,"rm: missing path\n"); return; }
     if (!strcmp(path,"/")){ fprintf(stderr,"rm: refusing to delete '/'\n"); return; }
