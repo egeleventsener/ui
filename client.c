@@ -190,11 +190,12 @@ int main() {
                 char scd[PATH_MAX+8];
                 int m = snprintf(scd, sizeof(scd), "scd %s", dest);
                 if (m > 0) {
-                    if (send(sock, scd, (size_t)m, 0) < 0) { perror("send scd"); fclose(fp); continue; }
+                    if (send(sock, scd, (size_t)m, 0) < 0 || send(sock, "\n", 1, 0) < 0) { perror("send scd"); fclose(fp); continue; }
                 }
             }
 
-            if (send(sock, "write_file", 10, 0) < 0) { perror("send write_file"); fclose(fp); continue; }
+                if (send(sock, "write_file\n", 11, 0) < 0) { perror("send write_file"); fclose(fp); continue; }
+
 
             const char *fname = path_basename(src);
             if (send(sock, fname, strlen(fname), 0) < 0 || send(sock, "\n", 1, 0) < 0) {
@@ -210,7 +211,8 @@ int main() {
             continue;
         }
 
-        if (send(sock, buffer, strlen(buffer), 0) < 0) { printf("Send failed\n"); break; }
+        if (send(sock, buffer, strlen(buffer), 0) < 0 || send(sock, "\n", 1, 0) < 0) {
+
 
         char reply[BUF_SIZE] = {0};
         int n = recv(sock, reply, sizeof(reply)-1, 0);

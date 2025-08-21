@@ -211,10 +211,9 @@ int main(void) {
         printf("Client connected.\n");
         char line[2048];
         for (;;) {
-            memset(line, 0, sizeof(line));
-            ssize_t n = recv(c, line, sizeof(line)-1, 0);
-            if (n <= 0) { printf("Client disconnected.\n"); break; }
-            line[strcspn(line, "\r\n")] = '\0';
+            char line[2048];
+            int r = recv_line(c, line, sizeof(line));
+            if (r <= 0) { printf("Client disconnected.\n"); break; }
             if (line[0] == '\0') { send_str(c, "Empty command\n"); continue; }
             handle_command(c, line);
         }
