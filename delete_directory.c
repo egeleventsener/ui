@@ -1,3 +1,13 @@
+#ifdef _WIN32
+#include <windows.h>
+#include <direct.h>
+#define rmdir _rmdir
+#define unlink _unlink
+#else
+#include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 #define _GNU_SOURCE
 #include "delete_directory.h"
 #include <stdio.h>
@@ -12,6 +22,31 @@
 #define PATH_MAX 4096
 #endif
 
+#ifdef _WIN32
+// Windows’ta basit recursive silme (symlink yok)
+static int remove_entry(const char *path) {
+    DWORD attrs = GetFileAttributesA(path);
+    if (attrs == INVALID_FILE_ATTRIBUTES) return -1;
+    if (attrs & FILE_ATTRIBUTE_DIRECTORY) {
+        WIN32_FIND_DATAA ffd;
+        char search[MAX_PATH];
+        snprintf(search, sizeof(search), "%s\\*", path);
+        HANDLE h = FindFirstFileA(search, &ffd);
+        if (h == INVALID_HANDLE_VALUE) return -1;
+        do {
+            if (!strcmp(ffd.cFileName, ".") || !strcmp(ffd.cFileName, "..")) continue;
+            char child[MAX_PATH];
+            snprintf(child, sizeof(child), "%s\\%s", path, ffd.cFileName);
+            remove_entry(child);
+        } while (FindNextFileA(h, &ffd));
+        FindClose(h);
+        return _rmdir(path);
+    } else {
+        return _unlink(path);
+    }
+}
+#else
+// Linux sürümü (senin yazdığın lstat+S_ISLNK’li olan)
 static int remove_entry(const char *path) {
     struct stat st;
     if (lstat(path, &st) != 0) return -1;
@@ -23,7 +58,7 @@ static int remove_entry(const char *path) {
         int ret = 0;
         while ((e = readdir(d))) {
             if (!strcmp(e->d_name,".") || !strcmp(e->d_name,"..")) continue;
-            if (snprintf(child, sizeof(child), "%s/%s", path, e->d_name) < 0) { ret=-1; break; }
+            snprintf(child, sizeof(child), "%s/%s", path, e->d_name);
             if (remove_entry(child) != 0) { ret=-1; break; }
         }
         closedir(d);
@@ -33,9 +68,5 @@ static int remove_entry(const char *path) {
         return unlink(path);
     }
 }
+#endif
 
-int delete_directory(const char *path) {
-    if (!path || !*path) { errno = EINVAL; return -1; }
-    if (!strcmp(path, "/")) { errno = EPERM; return -1; }
-    return remove_entry(path);
-}
