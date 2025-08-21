@@ -48,8 +48,8 @@ static int send_all(int sock, const void* buf, size_t len){ const char* p=(const
 static int send_file_with_size(FILE *fp, int sock, const char* srcpath){
     long long fsz = 0;
 #ifdef _WIN32
-    struct _stat64 st;
-    if (_stat64(srcpath, &st) != 0) return -1;
+    struct _stati64 st;
+    if (_stati64(srcpath, &st) != 0) return -1;
     fsz = (long long)st.st_size;
 #else
     struct stat st;
@@ -68,6 +68,7 @@ static int send_file_with_size(FILE *fp, int sock, const char* srcpath){
     }
     return 0;
 }
+
 
 
 int main(){
