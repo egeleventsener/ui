@@ -45,20 +45,30 @@ static void local_rm(const char *path){ if(!path||!*path){fprintf(stderr,"rm: mi
 
 static int send_all(int sock, const void* buf, size_t len){ const char* p=(const char*)buf; size_t sent=0; while(sent<len){ int r=send(sock, p+sent, (int)(len-sent), 0); if(r<=0) return -1; sent += (size_t)r; } return 0; }
 
-static int send_file_with_size(FILE *fp, int sock){
-    long long fsz=0;
+static int send_file_with_size(FILE *fp, int sock, const char* srcpath){
+    long long fsz = 0;
 #ifdef _WIN32
-    _fseeki64(fp,0,SEEK_END); fsz=_ftelli64(fp); _fseeki64(fp,0,SEEK_SET);
+    struct _stat64 st;
+    if (_stat64(srcpath, &st) != 0) return -1;
+    fsz = (long long)st.st_size;
 #else
-    fseeko(fp,0,SEEK_END); fsz=ftello(fp); fseeko(fp,0,SEEK_SET);
+    struct stat st;
+    if (stat(srcpath, &st) != 0) return -1;
+    fsz = (long long)st.st_size;
 #endif
-    if(fsz<0) return -1;
-    char hdr[64]; int m = snprintf(hdr,sizeof(hdr),"SIZE %lld\n", fsz);
-    if(m<=0 || send_all(sock, hdr, (size_t)m)<0) return -1;
-    char data[BUF_SIZE]; size_t n;
-    while((n=fread(data,1,sizeof(data),fp))>0){ if(send_all(sock,data,n)<0) return -1; }
+
+    char hdr[64];
+    int m = snprintf(hdr, sizeof(hdr), "SIZE %lld\n", fsz);
+    if (m <= 0 || send_all(sock, hdr, (size_t)m) < 0) return -1;
+
+    char data[BUF_SIZE];
+    size_t n;
+    while ((n = fread(data, 1, sizeof(data), fp)) > 0) {
+        if (send_all(sock, data, n) < 0) return -1;
+    }
     return 0;
 }
+
 
 int main(){
     int sock;
@@ -153,8 +163,7 @@ int main(){
             const char *fname = path_basename(src);
             if(send_all(sock, fname, strlen(fname))<0 || send_all(sock,"\n",1)<0){ perror("send filename"); fclose(fp); continue; }
 
-            if(send_file_with_size(fp, sock)<0){ perror("send file"); fclose(fp); continue; }
-            fclose(fp);
+            if (send_file_with_size(fp, sock, src) < 0) { perror("send file"); fclose(fp); continue; }            fclose(fp);
 
             char resp[256]={0}; int rcv = recv(sock, resp, sizeof(resp)-1, 0);
             if(rcv>0){ resp[rcv]='\0'; printf("Server: %s", resp); }
