@@ -1,50 +1,41 @@
-//delete_directory.c
+#define _GNU_SOURCE
 #include "delete_directory.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <dirent.h>
-#include <unistd.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <limits.h>
 
-int delete_directory(const char *path) {
-    DIR *dir = opendir(path);
-    if (dir == NULL) {
-        perror("opendir");
-        return -1;
-    }
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
-    struct dirent *entry;
-    char full_path[1024];
-
-    while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-            continue;
-
-        snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
-
-        struct stat statbuf;
-        if (stat(full_path, &statbuf) == 0) {
-            if (S_ISDIR(statbuf.st_mode)) {
-                if (delete_directory(full_path) != 0) {
-                    closedir(dir);
-                    return -1;
-                }
-            } else {
-                if (unlink(full_path) != 0) {
-                    perror("unlink");
-                    closedir(dir);
-                    return -1;
-                }
-            }
+static int remove_entry(const char *path) {
+    struct stat st;
+    if (lstat(path, &st) != 0) return -1;
+    if (S_ISDIR(st.st_mode) && !S_ISLNK(st.st_mode)) {
+        DIR *d = opendir(path);
+        if (!d) return -1;
+        struct dirent *e;
+        char child[PATH_MAX];
+        int ret = 0;
+        while ((e = readdir(d))) {
+            if (!strcmp(e->d_name,".") || !strcmp(e->d_name,"..")) continue;
+            if (snprintf(child, sizeof(child), "%s/%s", path, e->d_name) < 0) { ret=-1; break; }
+            if (remove_entry(child) != 0) { ret=-1; break; }
         }
+        closedir(d);
+        if (ret == 0) ret = rmdir(path);
+        return ret;
+    } else {
+        return unlink(path);
     }
-
-    closedir(dir);
-    if (rmdir(path) != 0) {  
-        perror("rmdir");
-        return -1;
-    }
-    return 0;
 }
 
+int delete_directory(const char *path) {
+    if (!path || !*path) { errno = EINVAL; return -1; }
+    if (!strcmp(path, "/")) { errno = EPERM; return -1; }
+    return remove_entry(path);
+}
