@@ -235,6 +235,8 @@ int main(void) {
             int r = recv_line(c, line, sizeof(line));
             if (r <= 0) { printf("Client disconnected.\n"); break; }
             if (line[0] == '\0') { send_str(c, "Empty command\n"); continue; }
+            printf("[DBG] cmd='%s'\n", line);
+            fflush(stdout);
             handle_command(c, line);   
     }
     close(c);
