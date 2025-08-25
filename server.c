@@ -70,6 +70,21 @@ static int recv_line(int c, char *buf, size_t bufsz){
     return (int)u;
 }
 
+static int recv_n_to_file(int c, const char* fname, long long nbytes){
+    FILE *fp = fopen(fname, "wb");
+    if (!fp) return -1;
+    char buf[4096];
+    long long left = nbytes;
+    while (left > 0){
+        ssize_t r = recv(c, buf, (left > (long long)sizeof(buf)) ? sizeof(buf) : (size_t)left, 0);
+        if (r <= 0){ fclose(fp); return -1; }
+        if (fwrite(buf,1,(size_t)r,fp)!=(size_t)r){ fclose(fp); return -1; }
+        left -= r;
+    }
+    fclose(fp);
+    return 0;
+}
+
 
 static int recv_until_eof_to_file(int c, const char* fname) {
     FILE *fp = fopen(fname, "wb");
@@ -167,17 +182,21 @@ static void handle_command(int client, char *cmdline) {
             send_str(client, "filename error\n");
             return;
         }
-        char target[PATH_MAX];
-        if (snprintf(target, sizeof(target), "%s", fname) < 0) {
-            send_str(client, "path error\n"); return;
+        char sizeln[128];
+        if (recv_line(client, sizeln, sizeof(sizeln)) < 0) {
+            send_str(client, "size error\n");
+            return;
         }
-        if (recv_until_eof_to_file(client, target) == 0) {
-            send_str(client, "OK\n");
-        } else {
-            send_str(client, "FAIL\n");
+        long long fsz = -1;
+        if (sscanf(sizeln, "SIZE %lld", &fsz) != 1 || fsz < 0) {
+            send_str(client, "bad size\n");
+            return;
         }
+        if (recv_n_to_file(client, fname, fsz) == 0) send_str(client, "OK\n");
+        else send_str(client, "FAIL\n");
         return;
-    }
+}
+
     send_str(client, "Unknown command\n");
 }
 
@@ -211,12 +230,12 @@ int main(void) {
         if (c < 0) { perror("accept"); continue; }
         printf("Client connected.\n");
 
-        char line[2048];  // <-- sadece burada
+        char line[2048];  
         for (;;) {
             int r = recv_line(c, line, sizeof(line));
             if (r <= 0) { printf("Client disconnected.\n"); break; }
             if (line[0] == '\0') { send_str(c, "Empty command\n"); continue; }
-            handle_command(c, line);   // burada close/exit yapma
+            handle_command(c, line);   
     }
     close(c);
 }
