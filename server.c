@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -57,18 +58,18 @@ static void send_str(int c, const char* s) {
     send(c, s, strlen(s), 0);
 }
 
-static int recv_line(int c, char *buf, size_t bufsz) {
-    size_t used = 0;
-    while (used + 1 < bufsz) {
-        char ch;
-        ssize_t r = recv(c, &ch, 1, 0);
-        if (r <= 0) return -1;
-        if (ch == '\n') { buf[used] = '\0'; return (int)used; }
-        buf[used++] = ch;
+static int recv_line(int c, char *buf, size_t bufsz){
+    size_t u = 0;
+    while (u + 1 < bufsz) {
+        char ch; ssize_t r = recv(c, &ch, 1, 0);
+        if (r <= 0) return -1;           
+        if (ch == '\n') { buf[u] = '\0'; return (int)u; }
+        if (ch != '\r') buf[u++] = ch;   
     }
     buf[bufsz-1] = '\0';
-    return (int)used;
+    return (int)u;
 }
+
 
 static int recv_until_eof_to_file(int c, const char* fname) {
     FILE *fp = fopen(fname, "wb");
@@ -209,16 +210,17 @@ int main(void) {
         int c = accept(srv, (struct sockaddr*)&cli, &cl);
         if (c < 0) { perror("accept"); continue; }
         printf("Client connected.\n");
-        char line[2048];
+
+        char line[2048];  // <-- sadece burada
         for (;;) {
-            char line[2048];
             int r = recv_line(c, line, sizeof(line));
             if (r <= 0) { printf("Client disconnected.\n"); break; }
             if (line[0] == '\0') { send_str(c, "Empty command\n"); continue; }
-            handle_command(c, line);
-        }
-        close(c);
+            handle_command(c, line);   // burada close/exit yapma
     }
+    close(c);
+}
+
     close(srv);
     return 0;
 }
