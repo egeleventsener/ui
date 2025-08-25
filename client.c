@@ -32,6 +32,29 @@
   static void log_sock_err(const char* msg) { perror(msg); }
 #endif
 
+static int send_all(int s, const void *b, size_t n){
+    const char *p = (const char*)b; size_t off=0;
+    while(off<n){ int r = send(s, p+off, (int)(n-off), 0); if(r<=0) return -1; off += (size_t)r; }
+    return 0;
+}
+
+static int send_file_with_size(FILE *fp, int sock, const char *srcpath){
+    long long fsz = 0;
+#ifdef _WIN32
+    struct _stati64 st; if (_stati64(srcpath, &st)!=0) return -1; fsz = (long long)st.st_size;
+#else
+    struct stat st; if (stat(srcpath, &st)!=0) return -1; fsz = (long long)st.st_size;
+#endif
+    char hdr[64]; int m = snprintf(hdr, sizeof(hdr), "SIZE %lld\n", fsz);
+    if (m<=0 || send_all(sock, hdr, (size_t)m)<0) return -1;
+
+    char buf[BUF_SIZE]; size_t r;
+    while((r=fread(buf,1,sizeof(buf),fp))>0){
+        if(send_all(sock, buf, r)<0) return -1;
+    }
+    return 0;
+}
+
 static const char* path_basename(const char* p){
     const char *b = p, *s;
     for (s = p; *s; ++s) if (*s=='/' || *s=='\\') b = s+1;
@@ -194,15 +217,14 @@ int main() {
                 }
             }
 
-                if (send(sock, "write_file\n", 11, 0) < 0) { perror("send write_file"); fclose(fp); continue; }
-
+            if (send_all(sock, "write_file\n", 11) < 0) { perror("send write_file"); fclose(fp); continue; }
 
             const char *fname = path_basename(src);
-            if (send(sock, fname, strlen(fname), 0) < 0 || send(sock, "\n", 1, 0) < 0) {
-                perror("send filename"); fclose(fp); continue;
+            if (send_all(sock, fname, strlen(fname)) < 0 || send_all(sock, "\n", 1) < 0) {
+            perror("send filename"); fclose(fp); continue;
             }
 
-            send_file_chunks(fp, sock);
+            if (send_file_with_size(fp, sock, src) < 0) { perror("send file"); fclose(fp); continue; }
             fclose(fp);
 
             char resp[256] = {0};
@@ -212,14 +234,16 @@ int main() {
         }
 
         if (send(sock, buffer, strlen(buffer), 0) < 0 || send(sock, "\n", 1, 0) < 0) {
-
+            perror("send");
+            continue;
+        }
 
         char reply[BUF_SIZE] = {0};
         int n = recv(sock, reply, sizeof(reply)-1, 0);
         if (n > 0) {
             reply[n] = '\0';
             printf("Server: %s", reply);
-            if (reply[n-1] != '\n') printf("\n");
+         if (reply[n-1] != '\n') printf("\n");
         } else if (n == 0) {
             printf("Server disconnected\n");
             break;
